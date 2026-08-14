@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../core/widgets/app_widgets.dart';
 import '../../database/database.dart';
 import '../../shared/providers/app_providers.dart';
 
@@ -300,7 +299,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           const SizedBox(height: 16),
           categories.when(
             data: (items) => DropdownButtonFormField<int?>(
-              value: _categoryId,
+              key: ValueKey(_categoryId),
+              initialValue: _categoryId,
               decoration: const InputDecoration(labelText: 'Category'),
               items: [
                 const DropdownMenuItem(value: null, child: Text('None')),
@@ -311,7 +311,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               onChanged: (value) => setState(() => _categoryId = value),
             ),
             loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
           const SizedBox(height: 16),
           ListTile(

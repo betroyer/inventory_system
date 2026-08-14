@@ -23,11 +23,8 @@ class ProductDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
-    final movementsAsync = ref.watch(
-      StreamProvider((ref) => ref
-          .watch(productsDaoProvider)
-          .watchStockMovementsForProduct(productId)),
-    );
+    final movementsAsync =
+        ref.watch(stockMovementsForProductProvider(productId));
     final settings = ref.watch(settingsServiceProvider);
 
     return productsAsync.when(
@@ -192,8 +189,17 @@ class ProductDetailScreen extends ConsumerWidget {
                     }).toList(),
                   );
                 },
-                loading: () => const CircularProgressIndicator(),
-                error: (_, __) => const SizedBox.shrink(),
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
               ),
               const SizedBox(height: 24),
               OutlinedButton.icon(

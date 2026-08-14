@@ -73,6 +73,13 @@ final recentStockMovementsProvider =
   return ref.watch(productsDaoProvider).watchRecentStockMovements();
 });
 
+final stockMovementsForProductProvider =
+    StreamProvider.family<List<StockMovement>, int>((ref, productId) {
+  return ref
+      .watch(productsDaoProvider)
+      .watchStockMovementsForProduct(productId);
+});
+
 final salesProvider = StreamProvider<List<Sale>>((ref) {
   return ref.watch(salesDaoProvider).watchAllSales();
 });
@@ -82,6 +89,10 @@ final expensesProvider = StreamProvider<List<Expense>>((ref) {
 });
 
 final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
+  ref.watch(salesProvider);
+  ref.watch(expensesProvider);
+  ref.watch(productsProvider);
+
   final salesDao = ref.watch(salesDaoProvider);
   final expensesDao = ref.watch(expensesDaoProvider);
   final productsDao = ref.watch(productsDaoProvider);

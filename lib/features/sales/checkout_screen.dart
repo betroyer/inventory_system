@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/app_widgets.dart';
-import '../../database/database.dart';
 import '../../database/daos/sales_dao.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../shared/providers/report_providers.dart';
 import 'cart_provider.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -54,6 +54,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _isProcessing = true);
     try {
       final cart = ref.read(cartProvider);
+      final productsDao = ref.read(productsDaoProvider);
+
+      for (final item in cart) {
+        final current =
+            await productsDao.getProduct(item.product.id);
+        if (current == null || current.quantity < item.quantity) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  current == null
+                      ? '${item.product.name} is no longer available.'
+                      : 'Not enough stock for ${item.product.name} '
+                          '(only ${current.quantity} left).',
+                ),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       final salesDao = ref.read(salesDaoProvider);
       final alertService = ref.read(stockAlertServiceProvider);
 
@@ -86,12 +108,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       ref.read(cartProvider.notifier).clear();
       ref.invalidate(dashboardSummaryProvider);
+      ref.invalidate(reportDataProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sale completed successfully!')),
         );
         Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    } on StateError catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);

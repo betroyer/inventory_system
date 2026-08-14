@@ -22,6 +22,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   double get totalProfit => state.fold(0, (sum, item) => sum + item.profit);
 
   void increment(Product product) {
+    if (product.quantity <= 0) return;
     final index = state.indexWhere((c) => c.product.id == product.id);
     if (index >= 0) {
       final item = state[index];

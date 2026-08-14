@@ -29,7 +29,7 @@ class BackupService {
         await database.select(database.appNotifications).get();
 
     final data = {
-      'version': 1,
+      'version': 2,
       'exportedAt': DateTime.now().toIso8601String(),
       'settings': settingsService.toJson(),
       'products': products.map(_productToJson).toList(),
@@ -72,17 +72,24 @@ class BackupService {
 
       for (final item in data['categories'] as List<dynamic>) {
         await database.into(database.categories).insert(
-              CategoriesCompanion.insert(name: item['name'] as String),
+              CategoriesCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                name: Value(item['name'] as String),
+                createdAt: item['createdAt'] != null
+                    ? Value(DateTime.parse(item['createdAt'] as String))
+                    : const Value.absent(),
+              ),
             );
       }
 
       for (final item in data['products'] as List<dynamic>) {
         await database.into(database.products).insert(
-              ProductsCompanion.insert(
-                name: item['name'] as String,
+              ProductsCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                name: Value(item['name'] as String),
                 imagePath: Value(item['imagePath'] as String?),
                 quantity: Value(item['quantity'] as int? ?? 0),
-                price: (item['price'] as num).toDouble(),
+                price: Value((item['price'] as num).toDouble()),
                 costPrice: Value((item['costPrice'] as num?)?.toDouble()),
                 minimumStock: Value(item['minimumStock'] as int? ?? 5),
                 expirationDate: Value(
@@ -91,30 +98,92 @@ class BackupService {
                       : null,
                 ),
                 categoryId: Value(item['categoryId'] as int?),
+                createdAt: item['createdAt'] != null
+                    ? Value(DateTime.parse(item['createdAt'] as String))
+                    : const Value.absent(),
+                updatedAt: item['updatedAt'] != null
+                    ? Value(DateTime.parse(item['updatedAt'] as String))
+                    : const Value.absent(),
               ),
             );
       }
 
       for (final item in data['sales'] as List<dynamic>) {
         await database.into(database.sales).insert(
-              SalesCompanion.insert(
-                totalAmount: (item['totalAmount'] as num).toDouble(),
+              SalesCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                totalAmount: Value((item['totalAmount'] as num).toDouble()),
                 totalCost: Value((item['totalCost'] as num?)?.toDouble() ?? 0),
                 profit: Value((item['profit'] as num?)?.toDouble() ?? 0),
-                cashReceived: (item['cashReceived'] as num).toDouble(),
-                changeAmount: (item['changeAmount'] as num).toDouble(),
+                cashReceived: Value((item['cashReceived'] as num).toDouble()),
+                changeAmount: Value((item['changeAmount'] as num).toDouble()),
                 createdAt: Value(DateTime.parse(item['createdAt'] as String)),
+              ),
+            );
+      }
+
+      final saleItems = data['saleItems'] as List<dynamic>? ?? const [];
+      for (final item in saleItems) {
+        await database.into(database.saleItems).insert(
+              SaleItemsCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                saleId: Value(item['saleId'] as int),
+                productId: Value(item['productId'] as int),
+                quantity: Value(item['quantity'] as int),
+                price: Value((item['price'] as num).toDouble()),
+                cost: Value((item['cost'] as num?)?.toDouble() ?? 0),
+                subtotal: Value((item['subtotal'] as num).toDouble()),
+                profit: Value((item['profit'] as num?)?.toDouble() ?? 0),
+              ),
+            );
+      }
+
+      final stockMovements =
+          data['stockMovements'] as List<dynamic>? ?? const [];
+      for (final item in stockMovements) {
+        await database.into(database.stockMovements).insert(
+              StockMovementsCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                productId: Value(item['productId'] as int),
+                type: Value(item['type'] as String),
+                quantity: Value(item['quantity'] as int),
+                previousQuantity: Value(item['previousQuantity'] as int),
+                newQuantity: Value(item['newQuantity'] as int),
+                reason: Value(item['reason'] as String?),
+                createdAt: item['createdAt'] != null
+                    ? Value(DateTime.parse(item['createdAt'] as String))
+                    : const Value.absent(),
               ),
             );
       }
 
       for (final item in data['expenses'] as List<dynamic>) {
         await database.into(database.expenses).insert(
-              ExpensesCompanion.insert(
-                category: item['category'] as String,
-                amount: (item['amount'] as num).toDouble(),
+              ExpensesCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                category: Value(item['category'] as String),
+                amount: Value((item['amount'] as num).toDouble()),
                 description: Value(item['description'] as String?),
                 createdAt: Value(DateTime.parse(item['createdAt'] as String)),
+              ),
+            );
+      }
+
+      final notifications =
+          data['notifications'] as List<dynamic>? ?? const [];
+      for (final item in notifications) {
+        await database.into(database.appNotifications).insert(
+              AppNotificationsCompanion(
+                id: item['id'] != null ? Value(item['id'] as int) : const Value.absent(),
+                type: Value(item['type'] as String),
+                title: Value(item['title'] as String),
+                message: Value(item['message'] as String),
+                productId: Value(item['productId'] as int?),
+                isRead: Value(item['isRead'] as bool? ?? false),
+                isDismissed: Value(item['isDismissed'] as bool? ?? false),
+                createdAt: item['createdAt'] != null
+                    ? Value(DateTime.parse(item['createdAt'] as String))
+                    : const Value.absent(),
               ),
             );
       }
@@ -145,6 +214,7 @@ class BackupService {
   }
 
   Map<String, dynamic> _productToJson(Product p) => {
+        'id': p.id,
         'name': p.name,
         'imagePath': p.imagePath,
         'quantity': p.quantity,
@@ -153,11 +223,18 @@ class BackupService {
         'minimumStock': p.minimumStock,
         'expirationDate': p.expirationDate?.toIso8601String(),
         'categoryId': p.categoryId,
+        'createdAt': p.createdAt.toIso8601String(),
+        'updatedAt': p.updatedAt.toIso8601String(),
       };
 
-  Map<String, dynamic> _categoryToJson(Category c) => {'name': c.name};
+  Map<String, dynamic> _categoryToJson(Category c) => {
+        'id': c.id,
+        'name': c.name,
+        'createdAt': c.createdAt.toIso8601String(),
+      };
 
   Map<String, dynamic> _saleToJson(Sale s) => {
+        'id': s.id,
         'totalAmount': s.totalAmount,
         'totalCost': s.totalCost,
         'profit': s.profit,
@@ -167,6 +244,7 @@ class BackupService {
       };
 
   Map<String, dynamic> _saleItemToJson(SaleItem s) => {
+        'id': s.id,
         'saleId': s.saleId,
         'productId': s.productId,
         'quantity': s.quantity,
@@ -177,6 +255,7 @@ class BackupService {
       };
 
   Map<String, dynamic> _movementToJson(StockMovement m) => {
+        'id': m.id,
         'productId': m.productId,
         'type': m.type,
         'quantity': m.quantity,
@@ -187,6 +266,7 @@ class BackupService {
       };
 
   Map<String, dynamic> _expenseToJson(Expense e) => {
+        'id': e.id,
         'category': e.category,
         'amount': e.amount,
         'description': e.description,
@@ -194,6 +274,7 @@ class BackupService {
       };
 
   Map<String, dynamic> _notificationToJson(AppNotification n) => {
+        'id': n.id,
         'type': n.type,
         'title': n.title,
         'message': n.message,

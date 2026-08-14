@@ -1,14 +1,12 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' hide Column;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../core/constants/app_constants.dart';
-import '../../database/database.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../shared/providers/report_providers.dart';
 import 'pin_setup_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -208,7 +206,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 await ref
                     .read(backupServiceProvider)
                     .restoreBackup(File(result.files.single.path!));
-                if (mounted) {
+                ref.invalidate(settingsServiceProvider);
+                ref.invalidate(dashboardSummaryProvider);
+                ref.invalidate(reportDataProvider);
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Backup restored.')),
                   );
@@ -220,29 +221,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: const Text('Export Products CSV'),
             onTap: () async {
               await ref.read(backupServiceProvider).exportProductsCsv();
-              if (mounted) {
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('CSV exported to documents.')),
                 );
               }
             },
-          ),
-          const Divider(height: 32),
-          Text('Categories', style: Theme.of(context).textTheme.titleMedium),
-          ...AppConstants.defaultCategories.map(
-            (name) => ListTile(
-              title: Text(name),
-              trailing: IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () async {
-                  try {
-                    await ref.read(productsDaoProvider).insertCategory(
-                          CategoriesCompanion.insert(name: name),
-                        );
-                  } catch (_) {}
-                },
-              ),
-            ),
           ),
         ],
       ),

@@ -104,7 +104,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
             ),
             loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
           Expanded(
             child: productsAsync.when(
@@ -137,7 +137,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 return ListView.separated(
                   padding: const EdgeInsets.all(20),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final product = filtered[index];
                     final status = product.stockStatus;

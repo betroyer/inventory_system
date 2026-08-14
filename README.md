@@ -8,7 +8,7 @@ Premium, offline-first mobile inventory and store management app for sari-sari s
 - **Inventory** — Product list with search, categories, stock status indicators
 - **Add Product** — Camera/gallery photo, name, quantity, price, confirmation modal (no barcode)
 - **Sales** — Fast new sale flow with cart, checkout, cash/change calculation
-- **Restocking** — Add stock with optional cost and supplier, confirmation step
+- **Restocking** — Add stock with optional purchase cost, confirmation step
 - **Notifications** — In-app low stock, out of stock, and expiration alerts
 - **Expenses** — Record business expenses with confirmation
 - **Reports** — Daily/weekly/monthly sales, profit, expenses, charts, best sellers

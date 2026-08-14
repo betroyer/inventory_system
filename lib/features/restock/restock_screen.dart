@@ -19,7 +19,6 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
   Product? _selectedProduct;
   final _quantityController = TextEditingController();
   final _costController = TextEditingController();
-  final _supplierController = TextEditingController();
   bool _isSaving = false;
 
   @override
@@ -40,7 +39,6 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
   void dispose() {
     _quantityController.dispose();
     _costController.dispose();
-    _supplierController.dispose();
     super.dispose();
   }
 
@@ -67,7 +65,6 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
     try {
       final dao = ref.read(productsDaoProvider);
       final cost = double.tryParse(_costController.text.trim());
-      final supplier = _supplierController.text.trim();
 
       await dao.updateProductById(
         product.id,
@@ -85,9 +82,7 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
           quantity: qty,
           previousQuantity: product.quantity,
           newQuantity: newQty,
-          reason: Value(
-            supplier.isNotEmpty ? 'Restock from $supplier' : 'Restock',
-          ),
+          reason: const Value('Restock'),
         ),
       );
 
@@ -120,7 +115,8 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
         children: [
           productsAsync.when(
             data: (products) => DropdownButtonFormField<Product>(
-              value: _selectedProduct,
+              key: ValueKey(_selectedProduct?.id),
+              initialValue: _selectedProduct,
               decoration: const InputDecoration(labelText: 'Select Product *'),
               items: products
                   .map(
@@ -147,13 +143,6 @@ class _RestockScreenState extends ConsumerState<RestockScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               labelText: 'Purchase Cost (optional)',
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _supplierController,
-            decoration: const InputDecoration(
-              labelText: 'Supplier (optional)',
             ),
           ),
           if (_selectedProduct != null &&

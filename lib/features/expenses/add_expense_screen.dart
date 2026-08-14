@@ -7,6 +7,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../database/database.dart';
 import '../../shared/providers/app_providers.dart';
+import '../../shared/providers/report_providers.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   const AddExpenseScreen({super.key});
@@ -59,6 +60,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
           );
       ref.invalidate(dashboardSummaryProvider);
+      ref.invalidate(reportDataProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,7 +81,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           DropdownButtonFormField<String>(
-            value: _category,
+            key: ValueKey(_category),
+            initialValue: _category,
             decoration: const InputDecoration(labelText: 'Category'),
             items: AppConstants.expenseCategories
                 .map((c) => DropdownMenuItem(value: c, child: Text(c)))

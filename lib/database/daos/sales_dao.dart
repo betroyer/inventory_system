@@ -67,6 +67,11 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
             .getSingle();
         final previousQty = product.quantity;
         final newQty = previousQty - item.quantity;
+        if (newQty < 0) {
+          throw StateError(
+            'Insufficient stock for product #${item.productId}',
+          );
+        }
 
         await (update(products)..where((t) => t.id.equals(item.productId)))
             .write(

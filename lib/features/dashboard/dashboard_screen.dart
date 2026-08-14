@@ -103,7 +103,7 @@ class DashboardScreen extends ConsumerWidget {
                           ],
                         ),
                         loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
                       ),
                     ],
                   ),
@@ -272,7 +272,7 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                     loading: () => const CircularProgressIndicator(),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
                   ),
                 ],
               ),
