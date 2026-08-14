@@ -24,7 +24,29 @@ Premium, offline-first mobile inventory and store management app for sari-sari s
 | Fonts | Google Fonts (Inter) |
 | Charts | fl_chart |
 
-## Getting Started
+## Install on Android (Release)
+
+Download the latest APK from **[GitHub Releases](https://github.com/betroyer/inventory_system/releases)**:
+
+1. Open the release page on your phone or computer
+2. Download `sari-sari-store-x.x.x.apk`
+3. Open the file and allow **Install from unknown sources** if prompted
+4. Launch **Sari-Sari Store**
+
+### Publish a new release
+
+1. Bump the version in `pubspec.yaml` (e.g. `1.0.1+2`)
+2. Commit and push to `main`
+3. Create and push a tag:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
+```
+
+GitHub Actions will build the APK and publish a release automatically.
+
+## Getting Started (Development)
 
 ```bash
 cd c:\app2
