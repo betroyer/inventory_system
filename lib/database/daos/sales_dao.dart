@@ -152,7 +152,7 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
         .map(
           (row) => ProductSalesRank(
             productId: row.read<int>('product_id'),
-            productName: row.read<String>('name'),
+            productName: row.readNullable<String>('name') ?? 'Unknown',
             totalQuantity: row.read<int>('total_qty'),
             totalValue: row.read<double>('total_value'),
           ),
@@ -165,10 +165,10 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     required DateTime end,
   }) async {
     final query = '''
-      SELECT date(created_at) as day, SUM(total_amount) as total
+      SELECT date(created_at, 'unixepoch') as day, SUM(total_amount) as total
       FROM sales
       WHERE created_at >= ? AND created_at < ?
-      GROUP BY date(created_at)
+      GROUP BY day
       ORDER BY day ASC
     ''';
 
@@ -183,11 +183,16 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
 
     return rows
         .map(
-          (row) => SalesTrendPoint(
-            date: DateTime.parse(row.read<String>('day')),
-            total: row.read<double>('total'),
-          ),
+          (row) {
+            final day = row.readNullable<String>('day');
+            if (day == null) return null;
+            return SalesTrendPoint(
+              date: DateTime.parse(day),
+              total: row.read<double>('total'),
+            );
+          },
         )
+        .whereType<SalesTrendPoint>()
         .toList();
   }
 }

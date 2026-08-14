@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../../core/widgets/app_logo.dart';
 import '../../shared/providers/app_providers.dart';
 
 class PinLockScreen extends ConsumerStatefulWidget {
@@ -65,8 +66,8 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline, size: 64),
-              const SizedBox(height: 16),
+              const AppLogo(height: 88),
+              const SizedBox(height: 20),
               Text(
                 settings.storeName,
                 style: Theme.of(context).textTheme.headlineSmall,

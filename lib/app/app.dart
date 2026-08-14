@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/widgets/app_logo.dart';
 import '../../database/database.dart';
 import '../../features/settings/pin_lock_screen.dart';
 import '../../shared/providers/app_providers.dart';
@@ -62,9 +63,7 @@ class _SariSariAppState extends ConsumerState<SariSariApp> {
       return MaterialApp(
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
-        home: const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        home: const AppSplash(),
       );
     }
 
