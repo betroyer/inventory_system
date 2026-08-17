@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/widgets/app_widgets.dart';
 import '../../shared/providers/app_providers.dart';
 import '../../shared/providers/report_providers.dart';
 import 'pin_setup_screen.dart';
@@ -20,6 +21,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _storeNameController;
   late final TextEditingController _ownerNameController;
   late final TextEditingController _contactController;
+  late final TextEditingController _targetController;
 
   @override
   void initState() {
@@ -28,6 +30,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _storeNameController = TextEditingController(text: settings.storeName);
     _ownerNameController = TextEditingController(text: settings.ownerName);
     _contactController = TextEditingController(text: settings.contactInfo);
+    _targetController = TextEditingController(
+      text: settings.monthlySalesTarget.toStringAsFixed(0),
+    );
   }
 
   @override
@@ -35,6 +40,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _storeNameController.dispose();
     _ownerNameController.dispose();
     _contactController.dispose();
+    _targetController.dispose();
     super.dispose();
   }
 
@@ -100,6 +106,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           FilledButton(onPressed: _saveStoreInfo, child: const Text('Save')),
+          const Divider(height: 32),
+          Text('Sales Target',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _targetController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Monthly sales target',
+                    prefixText: '₱ ',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () async {
+                    final value =
+                        double.tryParse(_targetController.text.trim());
+                    if (value == null || value <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Enter a valid sales target.'),
+                        ),
+                      );
+                      return;
+                    }
+                    await settings.setMonthlySalesTarget(value);
+                    ref.invalidate(reportDataProvider);
+                    ref.invalidate(analysisDataProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Sales target saved.')),
+                      );
+                    }
+                  },
+                  child: const Text('Save Target'),
+                ),
+              ],
+            ),
+          ),
           const Divider(height: 32),
           Text('Appearance',
               style: Theme.of(context).textTheme.titleMedium),

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/theme/app_theme.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -10,7 +12,11 @@ import '../../database/database.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/product_extensions.dart';
 import '../../shared/providers/app_providers.dart';
+import '../expenses/add_expense_screen.dart';
 import '../products/add_product_screen.dart';
+import '../restock/restock_screen.dart';
+import '../sales/new_sale_screen.dart';
+import '../settings/settings_screen.dart';
 import 'product_detail_screen.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
@@ -37,177 +43,230 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddProductScreen()),
-              );
-            },
-            icon: const Icon(Icons.add),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search products...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _query.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _query = '');
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (value) => setState(() => _query = value.toLowerCase()),
-            ),
-          ),
-          categoriesAsync.when(
-            data: (categories) => SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+              child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: const Text('All'),
-                      selected: _selectedCategoryId == null,
-                      onSelected: (_) =>
-                          setState(() => _selectedCategoryId = null),
+                  Expanded(
+                    child: Text(
+                      'Store',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  ...categories.map(
-                    (Category c) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(c.name),
-                        selected: _selectedCategoryId == c.id,
-                        onSelected: (_) =>
-                            setState(() => _selectedCategoryId = c.id),
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NewSaleScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.point_of_sale_outlined),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.settings_outlined),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search products...',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) =>
+                    setState(() => _query = value.toLowerCase()),
+              ),
+            ),
+            categoriesAsync.when(
+              data: (categories) {
+                final labels = ['All', ...categories.map((c) => c.name)];
+                final ids = <int?>[null, ...categories.map((c) => c.id)];
+                final index = ids.indexOf(_selectedCategoryId);
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                  child: UnderlineTabs(
+                    labels: labels,
+                    index: index < 0 ? 0 : index,
+                    onChanged: (i) =>
+                        setState(() => _selectedCategoryId = ids[i]),
+                  ),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: Row(
+                children: [
+                  _StoreAction(
+                    icon: Icons.add_box_outlined,
+                    label: 'Restock',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RestockScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _StoreAction(
+                    icon: Icons.receipt_long_outlined,
+                    label: 'Expense',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddExpenseScreen(),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-          ),
-          Expanded(
-            child: productsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (products) {
-                var filtered = products.where((Product p) {
-                  final matchesQuery =
-                      _query.isEmpty || p.name.toLowerCase().contains(_query);
-                  final matchesCategory = _selectedCategoryId == null ||
-                      p.categoryId == _selectedCategoryId;
-                  return matchesQuery && matchesCategory;
-                }).toList();
+            const SizedBox(height: 8),
+            Expanded(
+              child: productsAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error: $e')),
+                data: (products) {
+                  final filtered = products.where((Product p) {
+                    final matchesQuery = _query.isEmpty ||
+                        p.name.toLowerCase().contains(_query);
+                    final matchesCategory = _selectedCategoryId == null ||
+                        p.categoryId == _selectedCategoryId;
+                    return matchesQuery && matchesCategory;
+                  }).toList();
 
-                if (filtered.isEmpty) {
-                  return EmptyState(
-                    icon: Icons.inventory_2_outlined,
-                    title: 'No products yet',
-                    subtitle: 'Add your first product to start tracking inventory.',
-                    action: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddProductScreen(),
-                      ),
-                    ),
-                    actionLabel: 'Add Product',
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final product = filtered[index];
-                    final status = product.stockStatus;
-                    final statusColor = switch (status) {
-                      StockStatus.inStock => AppColors.success,
-                      StockStatus.lowStock => AppColors.warning,
-                      StockStatus.outOfStock => AppColors.danger,
-                    };
-                    final statusLabel = switch (status) {
-                      StockStatus.inStock => 'In Stock',
-                      StockStatus.lowStock => 'Low Stock',
-                      StockStatus.outOfStock => 'Out of Stock',
-                    };
-
-                    return AppCard(
-                      onTap: () => Navigator.push(
+                  if (filtered.isEmpty) {
+                    return EmptyState(
+                      icon: Icons.storefront_outlined,
+                      title: 'No products yet',
+                      subtitle:
+                          'Add your first product to start tracking inventory.',
+                      action: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              ProductDetailScreen(productId: product.id),
+                          builder: (_) => const AddProductScreen(),
                         ),
                       ),
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: product.imagePath != null
-                                ? Image.file(
-                                    File(product.imagePath!),
-                                    width: 56,
-                                    height: 56,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(
-                                    width: 56,
-                                    height: 56,
-                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                    child: const Icon(Icons.inventory_2_outlined),
-                                  ),
+                      actionLabel: 'Add Product',
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final product = filtered[index];
+                      final status = product.stockStatus;
+                      final statusColor = switch (status) {
+                        StockStatus.inStock => AppColors.success,
+                        StockStatus.lowStock => AppColors.warning,
+                        StockStatus.outOfStock => AppColors.danger,
+                      };
+                      final statusLabel = switch (status) {
+                        StockStatus.inStock => 'In Stock',
+                        StockStatus.lowStock => 'Low Stock',
+                        StockStatus.outOfStock => 'Out of Stock',
+                      };
+
+                      return AppCard(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ProductDetailScreen(productId: product.id),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: product.imagePath != null
+                                  ? Image.file(
+                                      File(product.imagePath!),
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(
+                                      width: 56,
+                                      height: 56,
+                                      color: AppColors.primarySoft,
+                                      child: const Icon(
+                                        Icons.inventory_2_outlined,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    CurrencyFormatter.format(product.price),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: AppColors.mutedText,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
+                                  'Stock ${NumberFormat('#,##0').format(product.quantity)}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    color: AppColors.mutedText,
                                   ),
                                 ),
-                                Text(CurrencyFormatter.format(product.price)),
-                                Text('Stock: ${product.quantity}'),
+                                const SizedBox(height: 6),
+                                StockStatusChip(
+                                  label: statusLabel,
+                                  color: statusColor,
+                                ),
                               ],
                             ),
-                          ),
-                          StockStatusChip(
-                            label: statusLabel,
-                            color: statusColor,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
@@ -216,6 +275,39 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ),
         icon: const Icon(Icons.add),
         label: const Text('Add Product'),
+      ),
+    );
+  }
+}
+
+class _StoreAction extends StatelessWidget {
+  const _StoreAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: AppCard(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
       ),
     );
   }

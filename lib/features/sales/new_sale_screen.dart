@@ -136,15 +136,14 @@ class _NewSaleScreenState extends ConsumerState<NewSaleScreen> {
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: FilledButton(
-                  onPressed: () => Navigator.push(
+                child: GradientButton(
+                  label:
+                      'Review Cart • ${CurrencyFormatter.format(ref.read(cartProvider.notifier).total)}',
+                  onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const CheckoutScreen(),
                     ),
-                  ),
-                  child: Text(
-                    'Review Cart • ${CurrencyFormatter.format(ref.read(cartProvider.notifier).total)}',
                   ),
                 ),
               ),

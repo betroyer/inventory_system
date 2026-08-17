@@ -1,20 +1,21 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/theme/app_theme.dart';
-import '../../core/widgets/app_logo.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
-import '../../core/utils/store_health_calculator.dart';
 import '../../core/widgets/app_widgets.dart';
-import '../../database/database.dart';
-import '../../shared/models/enums.dart';
 import '../../shared/providers/app_providers.dart';
 import '../expenses/add_expense_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../products/add_product_screen.dart';
 import '../restock/restock_screen.dart';
 import '../sales/new_sale_screen.dart';
+import '../settings/settings_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,7 +25,6 @@ class DashboardScreen extends ConsumerWidget {
     final summary = ref.watch(dashboardSummaryProvider);
     final settings = ref.watch(settingsServiceProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
-    final recentMovements = ref.watch(recentStockMovementsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -32,121 +32,28 @@ class DashboardScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (data) {
-            final health = StoreHealthCalculator.calculate(
-              products: data.products,
-              todaySales: data.todaySales,
-              todayProfit: data.todayProfit,
-              lowStockCount: data.lowStockCount,
-              outOfStockCount: data.outOfStockCount,
-              expiringSoonCount: data.expiringSoonCount,
-            );
-
+            final updated = DateFormatter.longDate(DateTime.now());
             return RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(dashboardSummaryProvider);
                 await ref.read(stockAlertServiceProvider).checkAllProducts();
               },
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 children: [
-                  Row(
-                    children: [
-                      const AppLogo(height: 44),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              settings.storeName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'How is your store doing today?',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      unreadCount.when(
-                        data: (count) => Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            IconButton(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const NotificationsScreen(),
-                                ),
-                              ),
-                              icon: const Icon(Icons.notifications_outlined),
-                            ),
-                            if (count > 0)
-                              Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.danger,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '$count',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, _) => const SizedBox.shrink(),
-                      ),
-                    ],
+                  _HomeHeader(
+                    storeName: settings.storeName,
+                    photoPath: settings.storePhotoPath,
+                    unread: unreadCount,
                   ),
                   const SizedBox(height: 20),
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Store Health',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Text(
-                              '${health.score}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .displaySmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                            ),
-                            Text(
-                              '/100',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(health.attentionMessage),
-                        const SizedBox(height: 16),
-                        _HealthBar(label: 'Inventory', value: health.inventoryHealth),
-                        _HealthBar(label: 'Sales', value: health.salesHealth),
-                        _HealthBar(label: 'Stock', value: health.stockHealth),
-                        _HealthBar(label: 'Profit', value: health.profitHealth),
-                      ],
+                  _ProfitHeroCard(
+                    profit: data.weekProfit,
+                    growth: GrowthMath.percent(
+                      data.weekProfit,
+                      data.prevWeekProfit,
                     ),
+                    sparkline: data.sparkline,
                   ),
                   const SizedBox(height: 16),
                   GridView.count(
@@ -155,50 +62,69 @@ class DashboardScreen extends ConsumerWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.3,
+                    childAspectRatio: 0.95,
                     children: [
-                      StatCard(
-                        label: "Today's Sales",
-                        value: CurrencyFormatter.format(data.todaySales),
-                        icon: Icons.payments_outlined,
-                      ),
-                      StatCard(
-                        label: 'Estimated Profit',
-                        value: CurrencyFormatter.format(data.todayProfit),
-                        icon: Icons.trending_up_outlined,
-                        color: AppColors.success,
-                      ),
-                      StatCard(
+                      MiniStatCard(
                         label: 'Total Products',
                         value: '${data.totalProducts}',
                         icon: Icons.inventory_2_outlined,
+                        growth: GrowthMath.percent(
+                          data.totalProducts,
+                          data.productGrowthBase,
+                        ),
+                        updatedAt: updated,
                       ),
-                      StatCard(
-                        label: 'Low Stock',
-                        value: '${data.lowStockCount}',
-                        icon: Icons.warning_amber_outlined,
-                        color: AppColors.warning,
+                      MiniStatCard(
+                        label: 'Product Category',
+                        value: '${data.categoryCount}',
+                        icon: Icons.category_outlined,
+                        growth: GrowthMath.percent(
+                          data.categoryCount,
+                          data.categoryGrowthBase,
+                        ),
+                        updatedAt: updated,
+                        color: const Color(0xFF4C8DFF),
+                      ),
+                      MiniStatCard(
+                        label: 'Total Sold',
+                        value: NumberFormat('#,##0')
+                            .format(data.monthUnitsSold.round()),
+                        icon: Icons.shopping_bag_outlined,
+                        growth: GrowthMath.percent(
+                          data.monthUnitsSold,
+                          data.prevMonthUnitsSold,
+                        ),
+                        updatedAt: updated,
+                        color: const Color(0xFF3EC6D9),
+                      ),
+                      MiniStatCard(
+                        label: 'Monthly Income',
+                        value: CurrencyFormatter.compact(data.monthIncome),
+                        icon: Icons.account_balance_wallet_outlined,
+                        growth: GrowthMath.percent(
+                          data.monthIncome,
+                          data.prevMonthIncome,
+                        ),
+                        updatedAt: updated,
+                        color: const Color(0xFFF5C242),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  const SectionHeader(title: 'Quick Actions'),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _QuickAction(
-                        icon: Icons.point_of_sale_outlined,
-                        label: 'New Sale',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NewSaleScreen(),
-                          ),
-                        ),
+                  const SizedBox(height: 20),
+                  GradientButton(
+                    label: 'New Sale',
+                    icon: Icons.point_of_sale_rounded,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NewSaleScreen(),
                       ),
-                      _QuickAction(
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _QuickChip(
                         icon: Icons.add_box_outlined,
                         label: 'Restock',
                         onTap: () => Navigator.push(
@@ -208,7 +134,8 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      _QuickAction(
+                      const SizedBox(width: 10),
+                      _QuickChip(
                         icon: Icons.add_circle_outline,
                         label: 'Add Product',
                         onTap: () => Navigator.push(
@@ -218,9 +145,10 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      _QuickAction(
+                      const SizedBox(width: 10),
+                      _QuickChip(
                         icon: Icons.receipt_long_outlined,
-                        label: 'Add Expense',
+                        label: 'Expense',
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -230,53 +158,6 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  SectionHeader(
-                    title: 'Recent Activity',
-                    action: null,
-                  ),
-                  const SizedBox(height: 12),
-                  recentMovements.when(
-                    data: (movements) {
-                      if (movements.isEmpty) {
-                        return const AppCard(
-                          child: Text('No recent activity yet.'),
-                        );
-                      }
-                      return Column(
-                        children: movements.take(5).map((StockMovement m) {
-                          return AppCard(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Icon(_iconForMovement(m.type)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        StockMovementType.fromString(m.type).label,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${m.previousQuantity} → ${m.newQuantity}',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Text(DateFormatter.time(m.createdAt)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                    loading: () => const CircularProgressIndicator(),
-                    error: (_, _) => const SizedBox.shrink(),
-                  ),
                 ],
               ),
             );
@@ -285,41 +166,228 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
-  IconData _iconForMovement(String type) {
-    switch (StockMovementType.fromString(type)) {
-      case StockMovementType.sale:
-        return Icons.shopping_cart_outlined;
-      case StockMovementType.restock:
-        return Icons.add_box_outlined;
-      default:
-        return Icons.swap_horiz_outlined;
-    }
-  }
 }
 
-class _HealthBar extends StatelessWidget {
-  const _HealthBar({required this.label, required this.value});
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.storeName,
+    required this.photoPath,
+    required this.unread,
+  });
 
-  final String label;
-  final int value;
+  final String storeName;
+  final String? photoPath;
+  final AsyncValue<int> unread;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [Text(label), Text('$value%')],
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
           ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: value / 100,
-            borderRadius: BorderRadius.circular(8),
-            minHeight: 8,
+          child: _Avatar(photoPath: photoPath, storeName: storeName),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welcome Back!',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: AppColors.mutedText,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$storeName 👋',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        unread.when(
+          data: (count) => _BellButton(count: count),
+          loading: () => const _BellButton(count: 0),
+          error: (_, _) => const _BellButton(count: 0),
+        ),
+      ],
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.photoPath, required this.storeName});
+
+  final String? photoPath;
+  final String storeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: AppColors.primaryGradient,
+        image: photoPath != null
+            ? DecorationImage(
+                image: FileImage(File(photoPath!)),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      child: photoPath == null
+          ? Center(
+              child: Text(
+                storeName.isEmpty ? 'S' : storeName[0].toUpperCase(),
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _BellButton extends StatelessWidget {
+  const _BellButton({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          style: IconButton.styleFrom(
+            backgroundColor:
+                isDark ? const Color(0xFF2A2B32) : const Color(0xFFF3F3F5),
+            shape: const CircleBorder(),
+          ),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          ),
+          icon: const Icon(Icons.notifications_none_rounded),
+        ),
+        if (count > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF3B30),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ProfitHeroCard extends StatelessWidget {
+  const _ProfitHeroCard({
+    required this.profit,
+    required this.growth,
+    required this.sparkline,
+  });
+
+  final double profit;
+  final double growth;
+  final List<double> sparkline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 168,
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 78,
+            child: Sparkline(
+              values: sparkline.length >= 2
+                  ? sparkline
+                  : const [0, 2, 1, 4, 3, 5, 4],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profit amount',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  alignment: Alignment.centerLeft,
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    CurrencyFormatter.hero(profit),
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 28,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    GrowthBadge(percent: growth, compact: false, onGradient: true),
+                    const SizedBox(width: 8),
+                    Text(
+                      'From the previous week',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: Colors.white.withValues(alpha: 0.86),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -327,8 +395,8 @@ class _HealthBar extends StatelessWidget {
   }
 }
 
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
+class _QuickChip extends StatelessWidget {
+  const _QuickChip({
     required this.icon,
     required this.label,
     required this.onTap,
@@ -340,17 +408,22 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+    return Expanded(
       child: AppCard(
-        padding: const EdgeInsets.all(16),
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center),
+            Icon(icon, color: AppColors.primary, size: 22),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),

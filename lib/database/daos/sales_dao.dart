@@ -128,10 +128,13 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
     int limit = 10,
   }) async {
     final query = '''
-      SELECT si.product_id, p.name, SUM(si.quantity) as total_qty, SUM(si.subtotal) as total_value
+      SELECT si.product_id, p.name, p.image_path,
+             COALESCE(c.name, 'Other') as category,
+             SUM(si.quantity) as total_qty, SUM(si.subtotal) as total_value
       FROM sale_items si
       INNER JOIN sales s ON s.id = si.sale_id
       INNER JOIN products p ON p.id = si.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
       WHERE s.created_at >= ? AND s.created_at < ?
       GROUP BY si.product_id
       ORDER BY total_qty DESC
@@ -153,8 +156,10 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
           (row) => ProductSalesRank(
             productId: row.read<int>('product_id'),
             productName: row.readNullable<String>('name') ?? 'Unknown',
-            totalQuantity: row.read<int>('total_qty'),
-            totalValue: row.read<double>('total_value'),
+            totalQuantity: _readNumber(row, 'total_qty').round(),
+            totalValue: _readNumber(row, 'total_value'),
+            imagePath: row.readNullable<String>('image_path'),
+            categoryName: row.readNullable<String>('category') ?? 'Other',
           ),
         )
         .toList();
@@ -188,12 +193,134 @@ class SalesDao extends DatabaseAccessor<AppDatabase> with _$SalesDaoMixin {
             if (day == null) return null;
             return SalesTrendPoint(
               date: DateTime.parse(day),
-              total: row.read<double>('total'),
+              total: _readNumber(row, 'total'),
             );
           },
         )
         .whereType<SalesTrendPoint>()
         .toList();
+  }
+
+  Future<double> getUnitsSold({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final rows = await customSelect(
+      '''
+      SELECT COALESCE(SUM(si.quantity), 0) as total_qty
+      FROM sale_items si
+      INNER JOIN sales s ON s.id = si.sale_id
+      WHERE s.created_at >= ? AND s.created_at < ?
+      ''',
+      variables: [
+        Variable.withDateTime(start),
+        Variable.withDateTime(end),
+      ],
+      readsFrom: {saleItems, sales},
+    ).get();
+    if (rows.isEmpty) return 0;
+    return _readNumber(rows.first, 'total_qty');
+  }
+
+  Future<RangeTotals> getRangeTotals(DateTime start, DateTime end) async {
+    final daySales = await (select(sales)
+          ..where((t) =>
+              t.createdAt.isBiggerOrEqualValue(start) &
+              t.createdAt.isSmallerThanValue(end)))
+        .get();
+    final units = await getUnitsSold(start: start, end: end);
+    return RangeTotals(
+      totalSales: daySales.fold<double>(0, (sum, s) => sum + s.totalAmount),
+      totalProfit: daySales.fold<double>(0, (sum, s) => sum + s.profit),
+      transactionCount: daySales.length,
+      unitsSold: units,
+    );
+  }
+
+  Future<List<SalesTrendPoint>> getMonthlySalesTrend({int months = 6}) async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month - (months - 1), 1);
+    final end = DateTime(now.year, now.month + 1, 1);
+
+    final rows = await customSelect(
+      '''
+      SELECT strftime('%Y-%m', created_at, 'unixepoch') as month,
+             SUM(total_amount) as total
+      FROM sales
+      WHERE created_at >= ? AND created_at < ?
+      GROUP BY month
+      ORDER BY month ASC
+      ''',
+      variables: [
+        Variable.withDateTime(start),
+        Variable.withDateTime(end),
+      ],
+      readsFrom: {sales},
+    ).get();
+
+    final byMonth = <String, double>{};
+    for (final row in rows) {
+      final key = row.readNullable<String>('month');
+      if (key == null) continue;
+      byMonth[key] = _readNumber(row, 'total');
+    }
+
+    final points = <SalesTrendPoint>[];
+    for (var i = 0; i < months; i++) {
+      final date = DateTime(now.year, now.month - (months - 1 - i), 1);
+      final key =
+          '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}';
+      points.add(SalesTrendPoint(date: date, total: byMonth[key] ?? 0));
+    }
+    return points;
+  }
+
+  Future<List<CategoryMonthSales>> getCategoryMonthlySales({
+    int months = 6,
+  }) async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month - (months - 1), 1);
+    final end = DateTime(now.year, now.month + 1, 1);
+
+    final rows = await customSelect(
+      '''
+      SELECT strftime('%Y-%m', s.created_at, 'unixepoch') as month,
+             COALESCE(c.name, 'Other') as category,
+             SUM(si.subtotal) as total
+      FROM sale_items si
+      INNER JOIN sales s ON s.id = si.sale_id
+      INNER JOIN products p ON p.id = si.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE s.created_at >= ? AND s.created_at < ?
+      GROUP BY month, category
+      ORDER BY month ASC
+      ''',
+      variables: [
+        Variable.withDateTime(start),
+        Variable.withDateTime(end),
+      ],
+      readsFrom: {saleItems, sales, products},
+    ).get();
+
+    return rows
+        .map((row) {
+          final month = row.readNullable<String>('month');
+          if (month == null) return null;
+          return CategoryMonthSales(
+            monthKey: month,
+            category: row.readNullable<String>('category') ?? 'Other',
+            total: _readNumber(row, 'total'),
+          );
+        })
+        .whereType<CategoryMonthSales>()
+        .toList();
+  }
+
+  double _readNumber(QueryRow row, String column) {
+    final value = row.data[column];
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value') ?? 0;
   }
 }
 
@@ -235,12 +362,42 @@ class ProductSalesRank {
     required this.productName,
     required this.totalQuantity,
     required this.totalValue,
+    this.imagePath,
+    this.categoryName = 'Other',
   });
 
   final int productId;
   final String productName;
   final int totalQuantity;
   final double totalValue;
+  final String? imagePath;
+  final String categoryName;
+}
+
+class RangeTotals {
+  const RangeTotals({
+    required this.totalSales,
+    required this.totalProfit,
+    required this.transactionCount,
+    required this.unitsSold,
+  });
+
+  final double totalSales;
+  final double totalProfit;
+  final int transactionCount;
+  final double unitsSold;
+}
+
+class CategoryMonthSales {
+  const CategoryMonthSales({
+    required this.monthKey,
+    required this.category,
+    required this.total,
+  });
+
+  final String monthKey;
+  final String category;
+  final double total;
 }
 
 class SalesTrendPoint {

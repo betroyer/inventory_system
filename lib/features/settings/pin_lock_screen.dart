@@ -88,7 +88,13 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen> {
                 onSubmitted: (_) => _verifyPin(),
               ),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _verifyPin, child: const Text('Unlock')),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _verifyPin,
+                  child: const Text('Unlock'),
+                ),
+              ),
               if (settings.biometricEnabled) ...[
                 const SizedBox(height: 12),
                 TextButton(

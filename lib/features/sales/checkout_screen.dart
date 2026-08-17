@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/theme/app_theme.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../database/daos/sales_dao.dart';
@@ -188,7 +189,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       Text(
                         CurrencyFormatter.format(change),
                         style: TextStyle(
-                          color: change >= 0 ? Colors.green : Colors.red,
+                          color: change >= 0 ? AppColors.success : AppColors.danger,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -199,15 +200,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _isProcessing ? null : _completeSale,
-            child: _isProcessing
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Complete Sale'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _isProcessing ? null : _completeSale,
+              child: _isProcessing
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Complete Sale'),
+            ),
           ),
         ],
       ),

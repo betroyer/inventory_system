@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/app_bottom_nav.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
-import '../../features/reports/reports_screen.dart';
-import '../../features/sales/new_sale_screen.dart';
-import '../../features/settings/settings_screen.dart';
+import '../../features/reports/analysis_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -18,10 +17,8 @@ class _MainShellState extends State<MainShell> {
 
   final _screens = const [
     DashboardScreen(),
+    AnalysisScreen(),
     InventoryScreen(),
-    NewSaleScreen(),
-    ReportsScreen(),
-    SettingsScreen(),
   ];
 
   @override
@@ -31,36 +28,9 @@ class _MainShellState extends State<MainShell> {
         index: _index,
         children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inventory_2_outlined),
-            selectedIcon: Icon(Icons.inventory_2),
-            label: 'Inventory',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.point_of_sale_outlined),
-            selectedIcon: Icon(Icons.point_of_sale),
-            label: 'Sales',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+      bottomNavigationBar: AppBottomNav(
+        index: _index,
+        onChanged: (value) => setState(() => _index = value),
       ),
     );
   }

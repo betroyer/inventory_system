@@ -18,6 +18,7 @@ class SettingsService {
   static const _phoneNotificationsKey = 'phone_notifications';
   static const _expirationDaysKey = 'expiration_warning_days';
   static const _isSetupCompleteKey = 'is_setup_complete';
+  static const _monthlyTargetKey = 'monthly_sales_target';
 
   String get storeName => _prefs.getString(_storeNameKey) ?? 'My Sari-Sari Store';
   String get ownerName => _prefs.getString(_ownerNameKey) ?? '';
@@ -32,6 +33,8 @@ class SettingsService {
   bool get phoneNotifications => _prefs.getBool(_phoneNotificationsKey) ?? false;
   int get expirationWarningDays => _prefs.getInt(_expirationDaysKey) ?? 7;
   bool get isSetupComplete => _prefs.getBool(_isSetupCompleteKey) ?? false;
+  double get monthlySalesTarget =>
+      _prefs.getDouble(_monthlyTargetKey) ?? 50000;
 
   Future<void> setStoreName(String value) => _prefs.setString(_storeNameKey, value);
   Future<void> setOwnerName(String value) => _prefs.setString(_ownerNameKey, value);
@@ -61,6 +64,8 @@ class SettingsService {
       _prefs.setInt(_expirationDaysKey, value);
   Future<void> setSetupComplete(bool value) =>
       _prefs.setBool(_isSetupCompleteKey, value);
+  Future<void> setMonthlySalesTarget(double value) =>
+      _prefs.setDouble(_monthlyTargetKey, value);
 
   Map<String, dynamic> toJson() => {
         'storeName': storeName,
@@ -73,6 +78,7 @@ class SettingsService {
         'expirationAlerts': expirationAlerts,
         'phoneNotifications': phoneNotifications,
         'expirationWarningDays': expirationWarningDays,
+        'monthlySalesTarget': monthlySalesTarget,
       };
 
   Future<void> restoreFromJson(Map<String, dynamic> json) async {
@@ -88,5 +94,9 @@ class SettingsService {
     await setExpirationAlerts(json['expirationAlerts'] as bool? ?? true);
     await setPhoneNotifications(json['phoneNotifications'] as bool? ?? false);
     await setExpirationWarningDays(json['expirationWarningDays'] as int? ?? 7);
+    final target = json['monthlySalesTarget'];
+    if (target is num) {
+      await setMonthlySalesTarget(target.toDouble());
+    }
   }
 }
